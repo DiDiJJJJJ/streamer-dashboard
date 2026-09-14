@@ -1,0 +1,19 @@
+{
+  "name": "streamer-dashboard-server",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "B站直播后台数据自动抓取服务",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js",
+    "login": "node login.js"
+  },
+  "dependencies": {
+    "cors": "^2.8.5",
+    "express": "^4.19.2",
+    "node-cron": "^3.0.3",
+    "playwright-core": "^1.47.2",
+    "xlsx": "^0.18.5"
+  }
+}

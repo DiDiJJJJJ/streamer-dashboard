@@ -19,3 +19,12 @@ vite-*.log
 
 # ===== 超大原始流水（88MB），静态站改用已导出的 public/streamer_data.json =====
 streamer-dashboard/server/data/latest.json
+
+# ===== 二进制与运行输出（体积大且不应入库）=====
+streamer-dashboard/server/bin/
+*.exe
+streamer-dashboard/server/server.out
+streamer-dashboard/server/cloudflared.out
+
+# ===== 临时备份的旧内嵌 git 目录 =====
+streamer-dashboard/.git.bak/

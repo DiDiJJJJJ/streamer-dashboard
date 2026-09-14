@@ -1,0 +1,51 @@
+{
+  "version": 1,
+  "updatedAt": "2026-09-09T03:40:25.207Z",
+  "entries": {
+    "林夕": {
+      "name": "林夕",
+      "status": "active",
+      "firstSeen": "2026-08-31T10:00:19.746Z",
+      "joinedAt": "2026-08-31T10:00:19.746Z",
+      "leftAt": null,
+      "lastSeen": "2026-09-09T03:40:25.195Z",
+      "note": ""
+    },
+    "予我": {
+      "name": "予我",
+      "status": "active",
+      "firstSeen": "2026-08-31T10:00:19.746Z",
+      "joinedAt": "2026-08-31T10:00:19.746Z",
+      "leftAt": null,
+      "lastSeen": "2026-09-09T03:40:25.195Z",
+      "note": ""
+    },
+    "梧桐": {
+      "name": "梧桐",
+      "status": "active",
+      "firstSeen": "2026-08-31T10:00:19.746Z",
+      "joinedAt": "2026-08-31T10:00:19.746Z",
+      "leftAt": null,
+      "lastSeen": "2026-09-09T03:40:25.195Z",
+      "note": ""
+    },
+    "轨迹": {
+      "name": "轨迹",
+      "status": "active",
+      "firstSeen": "2026-08-31T10:00:19.746Z",
+      "joinedAt": "2026-08-31T10:00:19.746Z",
+      "leftAt": null,
+      "lastSeen": "2026-09-09T03:40:25.195Z",
+      "note": ""
+    },
+    "小辫子": {
+      "name": "小辫子",
+      "status": "active",
+      "firstSeen": "2026-08-31T10:00:19.746Z",
+      "joinedAt": "2026-08-31T10:00:19.746Z",
+      "leftAt": null,
+      "lastSeen": "2026-09-09T03:40:25.195Z",
+      "note": ""
+    }
+  }
+}

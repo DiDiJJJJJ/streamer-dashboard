@@ -1,0 +1,12 @@
+{
+  "port": 8787,
+  "adminToken": "",
+  "chromePath": "C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe",
+  "headless": true,
+  "cronToday": "*/20 * * * *",
+  "cronYesterday": "30 13 * * *",
+  "cronYesterdayFinal": "30 14 * * *",
+  "catchUpMissed": true,
+  "catchUpMaxAgeHours": 36,
+  "timezone": "Asia/Shanghai"
+}

@@ -1,0 +1,130 @@
+{
+  "ok": true,
+  "generatedAt": "2026-09-14T01:00:00.966Z",
+  "range": "近7日",
+  "rangeLabel": "近7日",
+  "file": "E:\\WorkBuddy\\线下主播管理后台\\streamer-dashboard\\server\\downloads\\recruit_1789347612079_入会管理_2026-09-14 09_00_10.xlsx",
+  "headers": [
+    "主播昵称",
+    "UID",
+    "房间号",
+    "经纪人",
+    "签约分成比例",
+    "礼物收益自提比例",
+    "签约金自提比例",
+    "运营奖惩进自提比例",
+    "合作时间",
+    "邀约人",
+    "邀约状态",
+    "时间点",
+    "统计时间"
+  ],
+  "archiveTotal": 64,
+  "newlyAdded": 1,
+  "totalJoined": 8,
+  "onlineTotal": 8,
+  "offlineTotal": 0,
+  "unknownTotal": 0,
+  "operators": [
+    {
+      "operator": "小辫子",
+      "online": 2,
+      "offline": 0,
+      "unknown": 0,
+      "total": 2,
+      "streamers": [
+        {
+          "name": "bili_28849181937",
+          "uid": "3706950764202837",
+          "room": "1756757771",
+          "status": "已入会",
+          "time": "2026-09-11 14:28:22",
+          "type": "online"
+        },
+        {
+          "name": "拜托了小暖i",
+          "uid": "3707044576102715",
+          "room": "1777431207",
+          "status": "已入会",
+          "time": "2026-09-07 19:54:25",
+          "type": "online"
+        }
+      ]
+    },
+    {
+      "operator": "予我",
+      "online": 2,
+      "offline": 0,
+      "unknown": 0,
+      "total": 2,
+      "streamers": [
+        {
+          "name": "青青温柠",
+          "uid": "585045746",
+          "room": "1833992671",
+          "status": "已入会",
+          "time": "2026-09-13 17:14:52",
+          "type": "online"
+        },
+        {
+          "name": "bili_67051630284",
+          "uid": "3747531173400424",
+          "room": "1838247221",
+          "status": "已入会",
+          "time": "2026-09-08 23:46:56",
+          "type": "online"
+        }
+      ]
+    },
+    {
+      "operator": "梧桐",
+      "online": 2,
+      "offline": 0,
+      "unknown": 0,
+      "total": 2,
+      "streamers": [
+        {
+          "name": "鱼仔우지아",
+          "uid": "12583846",
+          "room": "1936496476",
+          "status": "已入会",
+          "time": "2026-09-11 18:22:07",
+          "type": "online"
+        },
+        {
+          "name": "春明ing",
+          "uid": "3747502153010288",
+          "room": "1778468711",
+          "status": "已入会",
+          "time": "2026-09-07 20:35:55",
+          "type": "online"
+        }
+      ]
+    },
+    {
+      "operator": "林夕",
+      "online": 2,
+      "offline": 0,
+      "unknown": 0,
+      "total": 2,
+      "streamers": [
+        {
+          "name": "xue雪子_",
+          "uid": "3632304740108500",
+          "room": "1714608025",
+          "status": "已入会",
+          "time": "2026-09-12 20:16:50",
+          "type": "online"
+        },
+        {
+          "name": "小魚饼ii",
+          "uid": "3546881865026232",
+          "room": "1756751513",
+          "status": "已入会",
+          "time": "2026-09-10 22:57:29",
+          "type": "online"
+        }
+      ]
+    }
+  ]
+}

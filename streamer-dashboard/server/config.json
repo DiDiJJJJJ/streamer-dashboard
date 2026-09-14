@@ -1,0 +1,5 @@
+{
+  "cronToday": "*/20 * * * *",
+  "cronYesterday": "30 13 * * *",
+  "adminToken": "fbc1985757d7849a22e64c672d3120a6"
+}

@@ -1,0 +1,341 @@
+@import "tailwindcss";
+
+@theme {
+  /* 品牌主色：清爽蓝调（不依赖 logo 紫色，全站统一协调） */
+  --color-brand-50: #eff6ff;
+  --color-brand-100: #dbeafe;
+  --color-brand-200: #bfdbfe;
+  --color-brand-300: #93c5fd;
+  --color-brand-400: #60a5fa;
+  --color-brand-500: #3b82f6;
+  --color-brand-600: #2563eb;
+  --color-brand-700: #1d4ed8;
+  --color-brand-800: #1e40af;
+  --color-brand-900: #1e3a8a;
+  --color-brand: #2563eb;
+
+  --color-surface: #ffffff;
+  --color-bg: #f4f7fb;
+  --color-border: #e6ecf4;
+  --color-text: #1f2937;
+  --color-text-secondary: #5b6b82;
+  --color-text-muted: #94a3b8;
+
+  --color-success: #10b981;
+  --color-warning: #f59e0b;
+  --color-danger: #ef4444;
+
+  /* 涨跌色板：遵循国内「红涨绿跌」习惯
+     - trend-up   上升 → 红色（正向）
+     - trend-down 下降 → 绿色（负向）
+     - trend-flat 持平 → 中性灰
+     用法：text-trend-up / text-trend-down / text-trend-flat */
+  --color-trend-up: #e0342c;
+  --color-trend-down: #16a34a;
+  --color-trend-flat: #94a3b8;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html, body, #root {
+  height: 100%;
+  margin: 0;
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", sans-serif;
+  /* 干净实色底色（侧边栏已改为实色，无需纹理供毛玻璃模糊） */
+  background-color: #f4f7fb;
+  color: #1f2937;
+}
+
+.bili-scrollbar::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+.bili-scrollbar::-webkit-scrollbar-thumb {
+  background-color: #cdd8e8;
+  border-radius: 3px;
+}
+
+.bili-scrollbar::-webkit-scrollbar-track {
+  background-color: transparent;
+}
+
+/* ============================================================
+   交互灵动性动效系统（UI 优化方案）
+   - 仅过渡 GPU 友好属性：transform / box-shadow / background / border / color / filter
+   - 不触发 layout（禁用 width/height/margin 动画），保证数据密集表格流畅
+   - 统一缓动与时长，桌面端后台场景通用
+   ============================================================ */
+:root {
+  /* 时长 */
+  --fx-dur-fast: 140ms;
+  --fx-dur-base: 200ms;
+  --fx-dur-slow: 320ms;
+  /* 缓动曲线 */
+  --fx-ease-out: cubic-bezier(0.22, 1, 0.36, 1);      /* 平滑减速收尾 */
+  --fx-ease-spring: cubic-bezier(0.34, 1.4, 0.64, 1); /* 轻微回弹 */
+  --fx-ease-smooth: cubic-bezier(0.4, 0, 0.2, 1);     /* 标准 */
+  /* 光晕（品牌蓝主色 #2563eb，其余为语义色） */
+  --fx-glow-brand: 0 8px 24px -8px rgba(37, 99, 235, 0.45);
+  --fx-glow-brand-sm: 0 4px 14px -6px rgba(37, 99, 235, 0.40);
+  --fx-glow-amber: 0 8px 22px -8px rgba(245, 158, 11, 0.50);
+  --fx-glow-danger: 0 8px 22px -8px rgba(239, 68, 68, 0.45);
+  --fx-accent: #2563eb;
+}
+
+/* 统一过渡基类：集中声明可过渡属性，避免与 Tailwind transition-* 冲突时只过渡颜色 */
+.fx-lift, .fx-glow, .fx-pop, .fx-card, .fx-chip, .fx-nav, .fx-iconbtn, .fx-th, .fx-panel {
+  transition-property: transform, box-shadow, background-color, border-color, color, filter;
+  transition-duration: var(--fx-dur-base);
+  transition-timing-function: var(--fx-ease-out);
+  will-change: auto;
+}
+
+/* --- 按钮：上浮 + 微放大 + 品牌光晕 --- */
+.fx-lift {
+  transform: translateZ(0);
+}
+.fx-lift:hover {
+  transform: translateY(-1px) scale(1.02);
+  box-shadow: var(--fx-glow-brand-sm);
+}
+.fx-lift:active {
+  transform: translateY(0) scale(0.97);
+  transition-duration: var(--fx-dur-fast);
+}
+
+/* --- 主行动按钮（CTA）：更强光晕 + 轻微提饱和 --- */
+.fx-glow:hover {
+  transform: translateY(-1px) scale(1.025);
+  box-shadow: var(--fx-glow-brand);
+  filter: saturate(1.08);
+}
+
+/* --- 圆形 / 图标按钮：回弹缩放 --- */
+.fx-pop:hover {
+  transform: scale(1.08);
+  box-shadow: var(--fx-glow-brand-sm);
+}
+.fx-pop:active {
+  transform: scale(0.92);
+  transition-duration: var(--fx-dur-fast);
+}
+
+/* --- 图标按钮（小号，trash/chevron 等）：温和放大 --- */
+.fx-iconbtn:hover {
+  transform: scale(1.12);
+  color: var(--fx-accent);
+}
+.fx-iconbtn:active { transform: scale(0.94); }
+
+/* --- 卡片 / 指标卡：上浮 + 放大 + 边框高亮 + 光晕 --- */
+.fx-card {
+  transform: translateZ(0);
+}
+.fx-card:hover {
+  transform: translateY(-3px) scale(1.006);
+  box-shadow: var(--fx-glow-brand-sm);
+  border-color: rgba(37, 99, 235, 0.35);
+}
+
+/* --- 大面板（整块容器）：仅边框 / 光晕，不位移，避免大面积跳动 --- */
+.fx-panel:hover {
+  border-color: rgba(37, 99, 235, 0.28);
+  box-shadow: 0 10px 30px -18px rgba(37, 99, 235, 0.40);
+}
+
+/* --- 赛道筛选 chips / tab：放大 + 高亮光晕 --- */
+.fx-chip:hover {
+  transform: scale(1.035);
+  box-shadow: var(--fx-glow-brand-sm);
+}
+.fx-chip:active { transform: scale(0.97); }
+
+/* --- 侧边导航项：右移 + 高亮 + 左侧指示条生长 --- */
+.fx-nav {
+  position: relative;
+  transform: translateZ(0);
+}
+.fx-nav:hover {
+  transform: translateX(4px);
+  background-color: rgba(255, 255, 255, 0.07);
+  color: #fff;
+}
+.fx-nav::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 50%;
+  height: 0;
+  width: 3px;
+  transform: translateY(-50%);
+  background: linear-gradient(180deg, #60a5fa, #2563eb);
+  border-radius: 0 3px 3px 0;
+  transition: height var(--fx-dur-base) var(--fx-ease-out);
+}
+.fx-nav:hover::before,
+.fx-nav.is-active::before { height: 60%; }
+
+/* --- 可排序表头：变色 + 轻微上移 + 箭头随动 --- */
+.fx-th {
+  transition-property: transform, color;
+  transition-duration: var(--fx-dur-base);
+  transition-timing-function: var(--fx-ease-out);
+}
+.fx-th:hover {
+  color: var(--fx-accent);
+  transform: translateY(-1px);
+}
+
+/* ============================================================
+   全局安全增强（无需逐个组件改动）
+   ============================================================ */
+/* 数据密集表格：行 hover 左侧内嵌强调条（不缩放，防布局抖动） */
+tbody tr {
+  transition: background-color var(--fx-dur-base) var(--fx-ease-out);
+}
+tbody tr > td:first-child {
+  box-shadow: inset 3px 0 0 transparent;
+  transition: box-shadow var(--fx-dur-base) var(--fx-ease-out);
+}
+tbody tr:hover > td:first-child {
+  box-shadow: inset 3px 0 0 var(--fx-accent);
+}
+
+/* 输入框 / 下拉 / 文本域：聚焦光环（仅叠加 box-shadow，不冲突 border 颜色） */
+input:focus,
+select:focus,
+textarea:focus {
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.18);
+}
+
+/* ============================================================
+   入场 / 加载 / 进度 动效（本轮新增）
+   ============================================================ */
+/* 分区/卡片入场：上浮淡入，配合内联 animationDelay 做 stagger */
+@keyframes fx-fade-up {
+  from { opacity: 0; transform: translateY(14px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+/* backwards：延迟期内保持起始态（隐藏、防闪），结束后回落到基础态，
+   不锁死 transform，从而 hover 位移/缩放（fx-card 等）仍可正常触发 */
+.fx-enter { animation: fx-fade-up var(--fx-dur-slow) var(--fx-ease-out) backwards; }
+
+/* 容器级错落入场：直接子元素依次上浮淡入（用于卡片网格/指标网格）。
+   同样用 backwards，避免入场动画结束后覆盖子元素的 hover transform。 */
+.fx-stagger > * {
+  animation: fx-fade-up var(--fx-dur-slow) var(--fx-ease-out) backwards;
+}
+.fx-stagger > *:nth-child(1)  { animation-delay: 0ms; }
+.fx-stagger > *:nth-child(2)  { animation-delay: 50ms; }
+.fx-stagger > *:nth-child(3)  { animation-delay: 100ms; }
+.fx-stagger > *:nth-child(4)  { animation-delay: 150ms; }
+.fx-stagger > *:nth-child(5)  { animation-delay: 200ms; }
+.fx-stagger > *:nth-child(6)  { animation-delay: 250ms; }
+.fx-stagger > *:nth-child(7)  { animation-delay: 300ms; }
+.fx-stagger > *:nth-child(8)  { animation-delay: 350ms; }
+.fx-stagger > *:nth-child(9)  { animation-delay: 400ms; }
+.fx-stagger > *:nth-child(10) { animation-delay: 450ms; }
+.fx-stagger > *:nth-child(n+11) { animation-delay: 500ms; }
+
+/* 骨架屏微光 */
+@keyframes fx-shimmer {
+  0%   { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+.fx-skeleton {
+  background: linear-gradient(90deg, #eef2f8 25%, #e2e9f3 37%, #eef2f8 63%);
+  background-size: 200% 100%;
+  animation: fx-shimmer 1.4s infinite linear;
+  border-radius: 8px;
+}
+
+/* 环形进度（SVG stroke-dashoffset）绘制动效由内联 transition 控制，这里提供兜底缓动 */
+.fx-ring-progress { transition: stroke-dashoffset 1s var(--fx-ease-out); }
+
+/* 徽标轻脉冲（用于「实时更新」等状态点） */
+@keyframes fx-pulse-soft {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50%      { opacity: 0.45; transform: scale(0.82); }
+}
+.fx-pulse-soft { animation: fx-pulse-soft 1.8s ease-in-out infinite; }
+
+/* 弹幕：从右向左滚动，覆盖榜单区域但不彻底遮挡数据（半透明 pointer-events-none） */
+@keyframes fx-danmaku {
+  0%   { transform: translateX(0); }
+  100% { transform: translateX(calc(-100vw - 100%)); }
+}
+.fx-danmaku {
+  animation-name: fx-danmaku;
+  animation-timing-function: linear;
+  animation-iteration-count: infinite;
+  will-change: transform;
+}
+
+/* 条形图末端「跑动的小动物」：原地小跑（轻微上下+左右摇摆，隐喻奔跑） */
+@keyframes fx-run {
+  0%, 100% { transform: translateY(0) rotate(-6deg); }
+  25%      { transform: translateY(-1.6px) rotate(6deg); }
+  50%      { transform: translateY(0) rotate(-4deg); }
+  75%      { transform: translateY(-1px) rotate(5deg); }
+}
+.fx-run {
+  animation: fx-run 0.85s ease-in-out infinite;
+  transform-box: fill-box;
+  transform-origin: center bottom;
+}
+
+/* 进度条加载时单侧光泽扫过（只播一次，避免持续干扰） */
+@keyframes fx-progress-shine {
+  0%   { transform: translateX(-100%); }
+  100% { transform: translateX(100%); }
+}
+.fx-progress-shine {
+  position: relative;
+  overflow: hidden;
+}
+.fx-progress-shine::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.42), transparent);
+  transform: translateX(-100%);
+  animation: fx-progress-shine 1.4s ease-out 1;
+}
+
+/* 减弱动效偏好：关闭位移与动画，保留可用性 */
+@media (prefers-reduced-motion: reduce) {
+  .fx-lift, .fx-glow, .fx-pop, .fx-iconbtn, .fx-card, .fx-chip, .fx-nav, .fx-th, .fx-panel,
+  tbody tr, input:focus, select:focus, textarea:focus {
+    transition-duration: 0.001ms !important;
+  }
+  .fx-lift:hover, .fx-glow:hover, .fx-pop:hover, .fx-iconbtn:hover, .fx-card:hover,
+  .fx-chip:hover, .fx-nav:hover, .fx-th:hover, .fx-panel:hover {
+    transform: none !important;
+  }
+  .fx-enter, .fx-pulse-soft, .fx-skeleton, .fx-danmaku, .fx-run { animation: none !important; }
+  .fx-skeleton { background: #eef2f8; }
+}
+
+/* ============================================================
+   移动端适配（手机浏览器，视口 ≤640px）
+   - 去除 iOS 点击高亮蓝块，改用 :active 态反馈
+   - 触控目标最小尺寸（图标/圆形按钮 ≥40px）
+   - 表格字号与内边距微调，保证窄屏数据清晰
+   - 兜底：防止偶发横向溢出撑出横向滚动条（fixed 抽屉不受影响）
+   ============================================================ */
+@media (max-width: 640px) {
+  * { -webkit-tap-highlight-color: transparent; }
+  .fx-pop,
+  button.fx-iconbtn {
+    min-width: 40px;
+    min-height: 40px;
+  }
+  table { font-size: 13px; }
+  th, td { padding-left: 10px; padding-right: 10px; }
+  #root { overflow-x: hidden; }
+  .fx-nav { min-height: 44px; }
+}
+
