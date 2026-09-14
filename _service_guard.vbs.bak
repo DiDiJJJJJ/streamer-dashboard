@@ -1,0 +1,22 @@
+Set WshShell = CreateObject("WScript.Shell")
+Set fso = CreateObject("Scripting.FileSystemObject")
+
+node = "C:\Users\Administrator\.workbuddy\binaries\node\versions\22.22.2-3\node.exe"
+root = "E:\WorkBuddy\线下主播管理后台\streamer-dashboard"
+logFile = root & "\server\server_run.log"
+
+On Error Resume Next
+If fso.FileExists(logFile) Then
+  Set f = fso.OpenTextFile(logFile, 8, True)
+  f.WriteLine "[guard-vbs] " & Now & " vbs boot ok"
+  f.Close
+End If
+On Error GoTo 0
+
+WshShell.CurrentDirectory = root
+WshShell.Environment("Process")("NODE_OPTIONS") = ""
+
+Do
+  WshShell.Run """" & node & """ server\index.js", 0, True
+  WScript.Sleep 5000
+Loop

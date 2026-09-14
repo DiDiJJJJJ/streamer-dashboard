@@ -1,0 +1,68 @@
+name: Deploy static dashboard to GitHub Pages
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - 'streamer-dashboard/src/**'
+      - 'streamer-dashboard/scripts/**'
+      - 'streamer-dashboard/server/data/**'
+      - 'streamer-dashboard/public/**'
+      - 'streamer-dashboard/package.json'
+      - 'streamer-dashboard/package-lock.json'
+      - 'streamer-dashboard/index.html'
+      - 'streamer-dashboard/vite.config.js'
+      - '.github/workflows/deploy-static.yml'
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: streamer-dashboard/package-lock.json
+
+      - name: Install dependencies
+        working-directory: streamer-dashboard
+        run: npm ci || npm install
+
+      - name: Export static data (server/data → public/)
+        working-directory: streamer-dashboard
+        run: node scripts/export-static.mjs
+
+      - name: Build static site
+        working-directory: streamer-dashboard
+        env:
+          VITE_STATIC: '1'
+          VITE_STATIC_PASSWORD: ${{ secrets.STATIC_PASSWORD }}
+        run: node node_modules/vite/bin/vite.js build . --outDir dist-static
+
+      - uses: actions/configure-pages@v4
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: streamer-dashboard/dist-static
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4

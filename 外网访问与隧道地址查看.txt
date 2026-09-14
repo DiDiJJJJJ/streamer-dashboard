@@ -1,0 +1,39 @@
+线下主播管理后台 · 外网访问与隧道地址查看
+========================================
+
+【本地访问】（无需隧道，电脑本机用）
+  管理后台：  http://localhost:8787
+  赛事分享页：http://localhost:8787/share.html?token=71624374398d33b205ab87f6b05e9a87557a13014bb95171
+
+【外网访问】（经 Cloudflare 临时隧道，需先启动服务+隧道）
+  当前隧道地址（临时、会变，仅作参考）：
+    https://infants-deferred-must-calvin.trycloudflare.com
+  分享页（外网版）：
+    https://infants-deferred-must-calvin.trycloudflare.com/share.html?token=71624374398d33b205ab87f6b05e9a87557a13014bb95171
+
+【重要：隧道地址是临时的，每次重启电脑都会变！】
+  已失效的旧地址（别再用）：
+    · ralph-species-assist-chelsea.trycloudflare.com
+    · groups-florida-hip-watch.trycloudflare.com
+    · flavor-seems-hazards-implications.trycloudflare.com
+    · bluetooth-advantages-differently-fifty.trycloudflare.com
+    · infants-deferred-must-calvin.trycloudflare.com（本条也会在下次重启后失效）
+
+【重启电脑后，去哪看“新的”隧道地址？】
+  方法1（最简单）：双击项目根目录的「启动主播管理后台.bat」，
+    脚本运行到末尾会自动打印一行：   外网：https://xxxx.trycloudflare.com
+  方法2：用记事本打开
+    E:\WorkBuddy\线下主播管理后台\streamer-dashboard\server\tunnel.log
+    搜索关键字 trycloudflare.com 即可看到当前生效地址。
+
+【怎么重新启动整套（服务 + 隧道）？】
+  双击「启动主播管理后台.bat」即可（服务以无窗口方式常驻，并自动拉起隧道）。
+  说明：关闭任何窗口都不会中断服务；但电脑重启后，服务和隧道都会停，需重新双击一次。
+
+【想要固定域名（不再每次变地址）？】
+  需注册一个免费的 Cloudflare 账号，执行一次 cloudflared tunnel login 并创建命名隧道，
+  之后地址永久不变。需要的话可以让 AI 助手帮你配置。
+
+【B站登录过期时】
+  看板顶部会弹红色「榜单数据已暂停更新」横幅，去「数据自动同步」页扫码重登即可，
+  系统会立即自动补抓，无需等下一个定时周期。

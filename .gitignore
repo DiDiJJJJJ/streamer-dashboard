@@ -1,0 +1,21 @@
+# ===== 依赖（不提交，CI 用 npm ci 重新安装）=====
+streamer-dashboard/node_modules/
+streamer-dashboard/venv/
+
+# ===== 构建产物（由 CI 重新生成，且含 88MB 数据）=====
+streamer-dashboard/dist/
+streamer-dashboard/dist-static/
+
+# ===== 隐私与项目内存（含运维笔记，切勿推送）=====
+.workbuddy/
+streamer-dashboard/.workbuddy/
+
+# ===== 日志与临时文件 =====
+*.log
+_procs.txt
+server_run.log
+preview.*
+vite-*.log
+
+# ===== 超大原始流水（88MB），静态站改用已导出的 public/streamer_data.json =====
+streamer-dashboard/server/data/latest.json
