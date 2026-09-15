@@ -16,7 +16,6 @@ import {
   VenueOps, TeamPerf, StreamerTier, ContentData, BizAnalysis, Ranking, RiskControl, Benchmark,
 } from './components/modules/AnalysisModules'
 import { useStreamerData } from './hooks/useStreamerData'
-import { TunnelHistoryPage } from './components/TunnelHistoryPage'
 import { StaticGate } from './components/StaticGate'
 
 const titles = {
@@ -48,7 +47,12 @@ function App() {
   const [tunnelToast, setTunnelToast] = useState(null) // 外网地址更新弹窗
   const sidebarExpanded = sidebarHover || mobileOpen
   const IS_STATIC = !!import.meta.env.VITE_STATIC
-  const STATIC_ALLOWED = new Set(['dashboard', 'streamerdata'])
+  // 静态模式下可真实渲染的页面（仅靠已嵌入的 streamer_data.json / props 客户端计算即可运行）；
+  // 不在名单内的页面（主播名册 CRUD、招募/月度/团队 API 页、周期流水 API 页）点击后显示占位提示。
+  const STATIC_ALLOWED = new Set([
+    'dashboard', 'streamerdata', 'agents', 'offlinelist',
+    'challenge', 'venue', 'team', 'tier', 'content', 'biz', 'ranking', 'risk', 'benchmark',
+  ])
   const forceStaticPlaceholder = IS_STATIC && !STATIC_ALLOWED.has(activeMenu)
   const {
     records,
@@ -172,7 +176,6 @@ function App() {
             <OfflineStreamersDataPage offlineStreamers={offlineStreamers} records={records} />
           )}
           {activeMenu === 'cycleflow' && <StreamerCycleFlowPage />}
-          {activeMenu === 'tunnel' && <TunnelHistoryPage />}
           {activeMenu === 'sync' && (
             <SyncPage
               onImport={importRecords}

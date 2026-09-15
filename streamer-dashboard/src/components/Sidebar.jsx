@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { LayoutDashboard, Users, BarChart3, Trophy, RefreshCcw, Menu, X, Building2, UserCog, Layers, Radio, Wallet, Award, ShieldAlert, GitCompareArrows, ChevronDown, ChevronRight, Globe } from 'lucide-react'
+import { LayoutDashboard, Users, BarChart3, Trophy, RefreshCcw, Menu, X, Building2, UserCog, Layers, Radio, Wallet, Award, ShieldAlert, GitCompareArrows, ChevronDown, ChevronRight } from 'lucide-react'
 
 // 运营数据看板为父级菜单，内含子菜单（主播数据 等）
 // requiresBackend: true 表示该项在静态托管模式下隐藏（依赖后端实时接口或为写操作页）
@@ -9,7 +9,6 @@ export const menuItems = [
     key: 'streamers',
     label: '线下主播管理',
     icon: Users,
-    requiresBackend: true,
     children: [
       { key: 'streamers', label: '主播名册' },
       { key: 'offlinelist', label: '线下主播数据' },
@@ -21,24 +20,23 @@ export const menuItems = [
     label: '运营数据看板',
     icon: BarChart3,
     children: [
-      { key: 'agents', label: '运营总览', requiresBackend: true },
+      { key: 'agents', label: '运营总览' },
       { key: 'streamerdata', label: '主播数据' },
-      { key: 'recruit', label: '入会招募统计', requiresBackend: true },
-      { key: 'opmonthly', label: '运营月度统计', requiresBackend: true },
-      { key: 'opteam', label: '运营团队变动', requiresBackend: true },
+      { key: 'recruit', label: '入会招募统计' },
+      { key: 'opmonthly', label: '运营月度统计' },
+      { key: 'opteam', label: '运营团队变动' },
     ],
   },
   { key: 'sync', label: '数据自动同步', icon: RefreshCcw, requiresBackend: true },
-  { key: 'challenge', label: '线下主播赛事管理', icon: Trophy, requiresBackend: true },
-  { key: 'venue', label: '场地运营', icon: Building2, requiresBackend: true },
-  { key: 'team', label: '团队管理', icon: UserCog, requiresBackend: true },
-  { key: 'tier', label: '主播分层', icon: Layers, requiresBackend: true },
-  { key: 'content', label: '内容数据', icon: Radio, requiresBackend: true },
-  { key: 'biz', label: '经营分析', icon: Wallet, requiresBackend: true },
-  { key: 'ranking', label: '排行榜', icon: Award, requiresBackend: true },
-  { key: 'risk', label: '风控中心', icon: ShieldAlert, requiresBackend: true },
-  { key: 'benchmark', label: '对标基准', icon: GitCompareArrows, requiresBackend: true },
-  { key: 'tunnel', label: '外网地址记录', icon: Globe, requiresBackend: true },
+  { key: 'challenge', label: '线下主播赛事管理', icon: Trophy },
+  { key: 'venue', label: '场地运营', icon: Building2 },
+  { key: 'team', label: '团队管理', icon: UserCog },
+  { key: 'tier', label: '主播分层', icon: Layers },
+  { key: 'content', label: '内容数据', icon: Radio },
+  { key: 'biz', label: '经营分析', icon: Wallet },
+  { key: 'ranking', label: '排行榜', icon: Award },
+  { key: 'risk', label: '风控中心', icon: ShieldAlert },
+  { key: 'benchmark', label: '对标基准', icon: GitCompareArrows },
 ]
 
 // 取某菜单项（含子菜单）所有可导航 key，用于判断是否处于激活分支
