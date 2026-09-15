@@ -386,7 +386,15 @@ export async function runUnionRecruitStats(opts = {}) {
     }
 
     const ctx = await getContext(config.headless)
-    page = await ctx.newPage()
+    // ⚠️ 必须复用 context 中已存在的页面（Chrome 初始标签页）：
+    // 实测用 ctx.newPage() 创建的标签页会在 B站 下载触发后被立即关闭，
+    // 导致 download.saveAs 抛 "Target page, context or browser has been closed"
+    //（2026-09-15 定位，与主播数据导出同一根因）。
+    const alivePages = ctx.pages().filter((p) => !p.isClosed())
+    const reusedPage = alivePages.length > 0
+    page = reusedPage ? alivePages[0] : await ctx.newPage()
+    try { page.removeAllListeners('response') } catch (e) { /* ignore */ }
+    log('[recruit] 取用页面: ' + (reusedPage ? '复用已有' : 'ctx.newPage() 新建'))
 
     try {
       // 优先尝试直接打开招募管理入口页（左侧菜单可正常渲染的页面）
@@ -435,21 +443,41 @@ export async function runUnionRecruitStats(opts = {}) {
 
       // 触发下载
       cleanDownloadFiles(['入退会', 'recruit', '入会', '主播'])
+
+      // 关键：在点击「下载」之前就注册 download 监听，并在事件触发瞬间立即保存。
+      // B站 会在下载开始后极短时间内关闭承载下载的页面，晚一步就会
+      // "Target page, context or browser has been closed" 而丢失文件。
+      const savePromise = page
+        .waitForEvent('download', { timeout: 90000 })
+        .then(async (dl) => {
+          const suggested = dl.suggestedFilename() || `recruit_${Date.now()}.xlsx`
+          const p = path.join(DOWNLOAD_DIR, `recruit_${Date.now()}_${suggested.replace(/[^\w.\-（）、\u4e00-\u9fa5]/g, '_')}`)
+          log('[recruit] download 事件已触发，立即保存: ' + suggested)
+          try {
+            await dl.saveAs(p)
+            return p
+          } catch (err) {
+            log('[recruit] download.saveAs 失败(' + err.message + ')，尝试 download.path()')
+            try {
+              const tmp = await dl.path()
+              if (tmp && fs.existsSync(tmp)) { fs.copyFileSync(tmp, p); return p }
+            } catch (e2) { /* ignore */ }
+            return null
+          }
+        })
+        .catch(() => null)
+
       const exported = await clickByText(page, config.selectors.recruitExportButton, { timeout: 10000 })
       if (!exported) {
         await dumpDebug(page, 'recruit-no-export')
         throw new Error('未找到「下载/导出」按钮，请检查 B站 页面是否改版')
       }
 
-      // 等待下载
-      let download = await page.waitForEvent('download', { timeout: 60000 }).catch(() => null)
-      if (!download) {
-        log('[recruit] 未通过 download 事件获取文件，轮询下载目录')
+      // 等待下载文件落盘（savePromise 在 download 事件触发的瞬间就已开始保存）
+      downloadPath = await savePromise
+      if (!downloadPath) {
+        log('[recruit] 未取得下载文件，轮询下载目录')
         downloadPath = await waitForDownloadFile(['入退会', 'recruit', '入会', '主播'], { timeout: 60000 })
-      } else {
-        const suggested = download.suggestedFilename() || `recruit_${Date.now()}.xlsx`
-        downloadPath = path.join(DOWNLOAD_DIR, `recruit_${Date.now()}_${suggested}`)
-        await download.saveAs(downloadPath)
       }
 
       if (!downloadPath || !fs.existsSync(downloadPath)) {

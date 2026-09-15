@@ -80,6 +80,14 @@ export async function getContext(headless = config.headless) {
     // 抹掉 webdriver 指纹
     await context.addInitScript(() => {
       Object.defineProperty(navigator, 'webdriver', { get: () => undefined })
+      // ⚠️ 关键（2026-09-15 定位）：
+      // B站 后台在导出完成后会关闭「承载下载的页面」。页面一旦被关，
+      // Playwright 的 download.saveAs() 立刻抛
+      // "Target page, context or browser has been closed"，文件随之丢失
+      // （表现为「导出未产生下载文件」，数据永久停更）。
+      // 实测：下载事件触发后仅 0.2 秒页面即被关闭，saveAs 必失败；
+      // 因此这里把 window.close 置为空操作，让页面保持存活以完成保存。
+      try { window.close = function () { /* blocked: 保护下载页存活 */ } } catch (e) { /* ignore */ }
     })
     context.on('close', () => { context = null; currentHeadless = null })
     return context

@@ -121,65 +121,185 @@ async function clickByText(page, texts, { timeout = 6000 } = {}) {
 // B站后台在 2026-09 改版：点击"下载"后先弹出"正在下载"对话框，
 // 要求选择【按日汇总下载】/【按日明细下载】；点击"按日汇总下载"后再弹出
 // "请选择需要下载的主播范围"对话框，需要点击"确定"才真正开始下载。
-async function handleDownloadTypeDialog(page, timeout = 40000) {
-  // B站 2026-09 改版：点击"下载"后延迟弹出标题为"正在下载"的选择对话框，内含【按日汇总下载】按钮。
-  // 先等待对话框本身可见（最长 timeout），再在对话框范围内点击按钮，
-  // 避免页面级 getByRole 命中隐藏的重复按钮、或对话框尚未出现就超时。
+/**
+ * 稳健点击：优先 Playwright 真实点击（含可见/稳定/命中检测），
+ * 失败则退回「元素几何中心 + 真实鼠标坐标点击」。
+ * 返回 'native' | 'mouse' | null。
+ */
+async function robustClick(page, locator, { timeout = 6000 } = {}) {
+  const el = locator.first()
   try {
-    const dialog = page.getByRole('dialog', { name: /正在下载/, exact: false }).first()
-    let dialogVisible = false
-    try {
-      await dialog.waitFor({ state: 'visible', timeout })
-      dialogVisible = await dialog.isVisible().catch(() => false)
-    } catch (e) { dialogVisible = false }
-    if (!dialogVisible) {
-      // 兜底：页面级按文本定位按钮
-      const btn = page.locator('button:has-text("按日汇总下载")').first()
-      if (await btn.isVisible().catch(() => false)) {
-        await btn.click({ force: true })
-        log('[fetch] 已点击「按日汇总下载」(页面级兜底)')
-        await page.waitForTimeout(1000)
-        return true
-      }
-      return false
+    if (await el.isVisible({ timeout: 2500 })) {
+      await el.click({ timeout })
+      return 'native'
     }
-    const btn = dialog.getByRole('button', { name: /按日汇总下载/, exact: false }).first()
-    await btn.waitFor({ state: 'visible', timeout: 8000 }).catch(() => null)
-    // 按钮内部含 tooltip，hover 时 tooltip 可能遮挡导致 click actionability 超时，
-    // force: true 跳过覆盖/稳定态检查，直接触发点击。
-    await btn.click({ force: true })
-    log('[fetch] 已点击「按日汇总下载」')
-    await page.waitForTimeout(1000)
-    return true
-  } catch (e) {
-    log('[fetch] handleDownloadTypeDialog 异常: ' + (e && e.message))
-  }
-  return false
+  } catch (e) { /* fall through */ }
+  const box = await el.boundingBox().catch(() => null)
+  if (!box || box.width <= 0 || box.height <= 0) return null
+  try {
+    await page.mouse.click(box.x + box.width / 2, box.y + box.height / 2)
+    return 'mouse'
+  } catch (e) { /* fall through */ }
+  return null
 }
 
-async function confirmDownloadScope(page, timeout = 20000) {
-  // 点击"按日汇总下载"后弹出"请选择需要下载的主播范围"对话框，默认"全部主播"已选中，点"确定"开始下载。
+/**
+ * 驱动 B站「正在下载」多步骤导出对话框，直到下载开始。
+ *
+ * ⚠️ 2026-09-15 实测：步骤顺序与直觉**相反**，且两级对话框标题完全相同（都叫「正在下载」），
+ * 不能用标题区分，只能按 **对话框正文内容** 分派动作：
+ *   步骤①「请选择需要下载的主播范围」（全部主播 / 仅有开播时长主播 / 仅有流水主播）+「确定」
+ *   步骤②「您可以选择【按日汇总下载】或者【按日明细下载】哦！」→ 点「按日汇总下载」
+ *   之后才真正开始下载。
+ * 历史教训（务必保留）：
+ *   - 写死"先点类型、再点范围"的顺序会导致第一步空等、第二步只推进到下一级就结束（下载永不触发）；
+ *   - Element UI 关闭 dialog 不销毁 DOM 只 display:none，页面会残留隐藏 wrapper，
+ *     而 evaluate(el => el.click()) 不校验可见性，会静默点到隐藏按钮（表现为"点击成功但零请求"），
+ *     所以必须用 `.el-dialog__wrapper:visible` 过滤。
+ * 返回：{ scope: 是否完成步骤①, type: 是否完成步骤② }
+ */
+async function driveExportFlow(page, timeout = 60000) {
+  const deadline = Date.now() + timeout
+  const done = { scope: 0, type: 0 }
+  let bothDoneAt = 0
   try {
-    const dialog = page.locator('.el-dialog__wrapper').filter({ hasText: '请选择需要下载的主播范围' }).first()
-    try {
-      await dialog.waitFor({ state: 'visible', timeout })
-    } catch (e) { /* 该账号可能不弹此框，直接走下载 */ }
-    const visible = await dialog.isVisible().catch(() => false)
-    if (!visible) {
-      log('[fetch] 未出现「选择下载范围」对话框，可能直接进入下载')
-      return false
-    }
-    const confirmBtn = dialog.locator('button').filter({ hasText: '确定' }).first()
-    if (await confirmBtn.isVisible().catch(() => false)) {
-      await confirmBtn.click({ force: true })
-      log('[fetch] 已确认下载范围并点击「确定」')
-      await page.waitForTimeout(1000)
-      return true
+    while (Date.now() < deadline) {
+      const dialogs = page.locator('.el-dialog__wrapper:visible')
+      const n = await dialogs.count().catch(() => 0)
+      let acted = false
+
+      for (let i = 0; i < n; i++) {
+        const d = dialogs.nth(i)
+        const txt = (await d.innerText({ timeout: 2000 }).catch(() => '')) || ''
+        if (!txt) continue
+
+        // 步骤①：选择主播范围（默认已选「全部主播」，仍显式点一次圆心确保状态）
+        if (txt.indexOf('主播范围') !== -1 && done.scope < 3) {
+          const radio = d.locator('.el-radio:visible').filter({ hasText: /全部主播/ }).first()
+          if ((await radio.count().catch(() => 0)) > 0) {
+            const rb = await radio.boundingBox().catch(() => null)
+            if (rb && rb.width > 0 && rb.height > 0) {
+              await page.mouse.click(rb.x + 8, rb.y + rb.height / 2).catch(() => {})
+              await page.waitForTimeout(400)
+            }
+          }
+          const btn = d.locator('button:visible').filter({ hasText: /确\s*定/ }).first()
+          if ((await btn.count().catch(() => 0)) > 0) {
+            const how = await robustClick(page, btn)
+            if (how) {
+              done.scope++
+              acted = true
+              log('[fetch] 导出① 已选「全部主播」并点击「确定」(' + how + ')')
+              await page.waitForTimeout(1800)
+              break
+            }
+          }
+        }
+
+        // 步骤②：选择下载类型
+        if (txt.indexOf('按日汇总下载') !== -1 && done.type < 3) {
+          const btn = d.locator('button:visible').filter({ hasText: /按日汇总下载/ }).first()
+          if ((await btn.count().catch(() => 0)) > 0) {
+            const how = await robustClick(page, btn)
+            if (how) {
+              done.type++
+              acted = true
+              log('[fetch] 导出② 已点击「按日汇总下载」(' + how + ')')
+              await page.waitForTimeout(1800)
+              break
+            }
+          }
+        }
+      }
+
+      if (done.scope > 0 && done.type > 0) {
+        if (!acted) {
+          if (!bothDoneAt) bothDoneAt = Date.now()
+          if (Date.now() - bothDoneAt > 4000) break
+        } else {
+          bothDoneAt = 0
+        }
+      }
+
+      if (!acted) {
+        const vis = await page.locator('.el-dialog__wrapper:visible').count().catch(() => 0)
+        if (vis === 0 && (done.scope > 0 || done.type > 0)) break
+        await page.waitForTimeout(400)
+      }
     }
   } catch (e) {
-    log('[fetch] confirmDownloadScope 异常: ' + (e && e.message))
+    log('[fetch] driveExportFlow 异常: ' + (e && e.message))
   }
-  return false
+
+  if (!(done.scope > 0 && done.type > 0)) {
+    const texts = await page.locator('.el-dialog__wrapper:visible').allInnerTexts().catch(() => [])
+    log('[fetch] 诊断: 导出流程未走完 scope=' + done.scope + ' type=' + done.type +
+      ' | 剩余可见对话框=' +
+      JSON.stringify(texts.map((t) => String(t || '').replace(/\s+/g, ' ').slice(0, 90))))
+  }
+  return { scope: done.scope > 0, type: done.type > 0 }
+}
+
+/**
+ * 取得用于抓取的页面。
+ *
+ * ⚠️ 2026-09-15 血泪教训（务必保留）：**必须优先复用 context 中已存在的页面**
+ * （Chrome 启动时的初始标签页），不要用 ctx.newPage()。
+ * 实测：用 newPage() 创建的标签页，在 B站 导出下载触发后约 0.2 秒会被关闭，
+ * 紧接着 context 也关闭，导致 Playwright 的 download.saveAs() 抛
+ * "Target page, context or browser has been closed"，下载文件随之丢失，
+ * 表现为「导出未产生下载文件」——数据永久停更。
+ * 而复用初始标签页时，页面能正常存活到文件保存完成。
+ *
+ * 复用页面时必须清掉上一轮抓取注册的 response 监听，避免多次重试后监听器累积。
+ */
+/**
+ * saveAs 失败后的兜底：B站 会在下载触发后极短时间内关闭承载下载的页面，
+ * 导致 Playwright 的 download artifact 失效（saveAs/path 都报
+ * "Target page, context or browser has been closed"）。
+ * 但下载 URL 本身仍可用，此处用 Node 原生 fetch 带上同一 profile 的 Cookie 直接拉取。
+ * @returns {Promise<string|null>} 保存后的本地路径
+ */
+async function fetchByDownloadUrl(dl, destPath, tag) {
+  try {
+    const url = dl.url()
+    if (!url || !/^https?:/i.test(url)) return null
+    const ctx = await getContext(config.headless)
+    const cookies = await ctx.cookies().catch(() => [])
+    const cookie = cookies.map((c) => `${c.name}=${c.value}`).join('; ')
+    const res = await fetch(url, {
+      headers: {
+        cookie,
+        referer: config.targetUrl,
+        'user-agent':
+          'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36',
+      },
+    })
+    if (!res.ok) {
+      log(`[${tag}] 下载 URL 兜底返回 HTTP ${res.status}`)
+      return null
+    }
+    const buf = Buffer.from(await res.arrayBuffer())
+    if (buf.length < 1024) {
+      log(`[${tag}] 下载 URL 兜底内容过小(${buf.length}B)，判定失败`)
+      return null
+    }
+    fs.writeFileSync(destPath, buf)
+    log(`[${tag}] 已通过下载 URL 兜底保存: ${buf.length} 字节`)
+    return destPath
+  } catch (e) {
+    log(`[${tag}] 下载 URL 兜底失败: ` + (e && e.message))
+    return null
+  }
+}
+
+async function acquirePage(ctx) {
+  const alive = ctx.pages().filter((p) => !p.isClosed())
+  const reused = alive.length > 0
+  const page = reused ? alive[0] : await ctx.newPage()
+  log('[page] 取用页面: ' + (reused ? '复用已有 ' + alive.length + ' 个中的第一个' : 'ctx.newPage() 新建'))
+  try { page.removeAllListeners('response') } catch (e) { /* ignore */ }
+  return page
 }
 
 async function pageHasLoginPrompt(page) {
@@ -317,7 +437,7 @@ async function fetchDataImpl(type = 'today') {
   while (retry <= maxRetry) {
     try {
       const ctx = await getContext(config.headless)
-      page = await ctx.newPage()
+      page = await acquirePage(ctx)
 
       // 捕获接口响应作为兜底数据源
       apiDumps = []
@@ -361,30 +481,45 @@ async function fetchDataImpl(type = 'today') {
 
       await page.waitForTimeout(800)
 
+      // 关键：必须在弹窗处理/点击「确定」之前就注册 download 监听。
+      // 若等点击后再注册，下载事件可能已在 waitForEvent 挂上之前发出，造成「点了确定却抓不到下载」。
+      // download 事件一触发就「立刻」保存：B站 在下载开始后很快就会关闭页面/上下文，
+      // 若像以前那样等到流程走完再 saveAs，会报 "Target page, context or browser has been closed"。
+      const savePromise = page
+        .waitForEvent('download', { timeout: 90000 })
+        .then(async (dl) => {
+          const suggested = dl.suggestedFilename() || `${type}.xlsx`
+          const p = path.join(DOWNLOAD_DIR, `${type}_${Date.now()}_${suggested}`)
+          log('[fetch] download 事件已触发，立即保存: ' + suggested)
+          try {
+            await dl.saveAs(p)
+            return p
+          } catch (err) {
+            log('[fetch] download.saveAs 失败(' + err.message + ')，尝试 download.path()')
+            try {
+              const tmp = await dl.path()
+              if (tmp && fs.existsSync(tmp)) { fs.copyFileSync(tmp, p); return p }
+            } catch { /* ignore */ }
+            return await fetchByDownloadUrl(dl, p, 'fetch')
+          }
+        })
+        .catch(() => null)
+
       // B站后台 2026-09 改版：点击下载后先弹"选择下载类型"对话框，点"按日汇总下载"后
       // 再弹"选择下载范围"对话框，最后点"确定"才真正开始下载。
       await page.waitForTimeout(1000)
-      let popupClicked = await handleDownloadTypeDialog(page, 40000)
-      if (!popupClicked) {
-        popupClicked = await clickByText(page, config.selectors.dailySummaryButton, { timeout: 8000 })
-      }
-      if (!popupClicked) {
-        log('[fetch] 未找到弹窗中的「按日汇总下载」，尝试直接等待下载事件')
+      const flow = await driveExportFlow(page, 60000)
+      if (!flow.scope || !flow.type) {
+        log('[fetch] 导出对话框未完整走完，仍继续等待下载事件')
+        await clickByText(page, config.selectors.dailySummaryButton, { timeout: 5000 })
       }
 
-      // 处理"选择下载范围"确认弹窗
-      await confirmDownloadScope(page, 20000)
-
-      // 等待下载完成：优先使用 Playwright download 事件，失败则轮询下载目录
-      let download = await page.waitForEvent('download', { timeout: 60000 }).catch(() => null)
-      if (!download) {
-        log('[fetch] 未通过 download 事件获取文件，轮询下载目录')
+      // 等待下载文件落盘（savePromise 在 download 事件触发的瞬间就已开始保存）
+      downloadPath = await savePromise
+      if (!downloadPath) {
+        log('[fetch] 未取得下载文件，轮询下载目录')
         downloadPath = await waitForDownloadFile('主播数据', { timeout: 60000 })
         if (!downloadPath) downloadPath = await waitForRecentExcel(DOWNLOAD_DIR, 60000)
-      } else {
-        const suggested = download.suggestedFilename() || `${type}.xlsx`
-        downloadPath = path.join(DOWNLOAD_DIR, `${type}_${Date.now()}_${suggested}`)
-        await download.saveAs(downloadPath)
       }
 
       if (!downloadPath || !fs.existsSync(downloadPath)) {
@@ -562,7 +697,7 @@ async function fetchDataByDateImpl(dateStr) {
     }
 
     const ctx = await getContext(config.headless)
-    page = await ctx.newPage()
+    page = await acquirePage(ctx)
 
     log(`[fetch-date] 打开数据页并筛选日期: ${dateStr}`)
     await page.goto(config.targetUrl, { waitUntil: 'domcontentloaded', timeout: config.navTimeout })
@@ -632,27 +767,41 @@ async function fetchDataByDateImpl(dateStr) {
       throw new Error('未找到「导出/下载」按钮，B站页面可能已改版。请查看 server/logs 下的快照')
     }
     await page.waitForTimeout(800)
-    let popupClicked = await handleDownloadTypeDialog(page, 40000)
-    if (!popupClicked) {
-      popupClicked = await clickByText(page, config.selectors.dailySummaryButton, { timeout: 8000 })
-    }
-    if (!popupClicked) {
-      log('[fetch-date] 未找到弹窗中的「按日汇总下载」，尝试直接等待下载事件')
+
+    // 关键：必须在弹窗处理/点击「确定」之前就注册 download 监听，
+    // 否则下载事件可能在 waitForEvent 挂上之前就已发出，导致「点了确定却抓不到下载」。
+    const savePromise = page
+      .waitForEvent('download', { timeout: 90000 })
+      .then(async (dl) => {
+        const suggested = dl.suggestedFilename() || `bydate_${dateStr}.xlsx`
+        const p = path.join(DOWNLOAD_DIR, `bydate_${dateStr}_${Date.now()}_${suggested}`)
+        log('[fetch-date] download 事件已触发，立即保存: ' + suggested)
+        try {
+          await dl.saveAs(p)
+          return p
+        } catch (err) {
+          log('[fetch-date] download.saveAs 失败(' + err.message + ')，尝试 download.path()')
+          try {
+            const tmp = await dl.path()
+            if (tmp && fs.existsSync(tmp)) { fs.copyFileSync(tmp, p); return p }
+          } catch { /* ignore */ }
+          return await fetchByDownloadUrl(dl, p, 'fetch-date')
+        }
+      })
+      .catch(() => null)
+
+    const flow = await driveExportFlow(page, 60000)
+    if (!flow.scope || !flow.type) {
+      log('[fetch-date] 导出对话框未完整走完，仍继续等待下载事件')
+      await clickByText(page, config.selectors.dailySummaryButton, { timeout: 5000 })
     }
 
-    // 处理"选择下载范围"确认弹窗
-    await confirmDownloadScope(page, 20000)
-
-    // 等待下载
-    let download = await page.waitForEvent('download', { timeout: 60000 }).catch(() => null)
-    if (!download) {
-      log('[fetch-date] 未通过 download 事件获取文件，轮询下载目录')
+    // 等待下载文件落盘
+    downloadPath = await savePromise
+    if (!downloadPath) {
+      log('[fetch-date] 未取得下载文件，轮询下载目录')
       downloadPath = await waitForDownloadFile('主播数据', { timeout: 60000 })
       if (!downloadPath) downloadPath = await waitForRecentExcel(DOWNLOAD_DIR, 60000)
-    } else {
-      const suggested = download.suggestedFilename() || `bydate_${dateStr}.xlsx`
-      downloadPath = path.join(DOWNLOAD_DIR, `bydate_${dateStr}_${Date.now()}_${suggested}`)
-      await download.saveAs(downloadPath)
     }
     if (!downloadPath || !fs.existsSync(downloadPath)) {
       await dumpDebug(page, 'no-download')
@@ -739,7 +888,26 @@ export async function fetchData(type = 'today') {
 
 /** 按指定日期补抓（带硬超时守护） */
 export async function fetchDataByDate(dateStr) {
-  return guardFetch(`【${dateStr}】按日期补抓`, { type: 'bydate', date: dateStr }, () => fetchDataByDateImpl(dateStr))
+  return guardFetch(`【${dateStr}】按日期补抓`, { type: 'bydate', date: dateStr }, async () => {
+    // B站 导出属于「概率性成功」：实测约一半概率在下载触发后被 B站 关闭承载下载的页面，
+    // 导致 download.saveAs 抛 "Target page, context or browser has been closed"
+    //（表现为「导出未产生下载文件」）。因此按日期补抓也必须像今日抓取一样重试。
+    let last = null
+    for (let attempt = 1; attempt <= 3; attempt++) {
+      try {
+        const r = await fetchDataByDateImpl(dateStr)
+        if (r && (r.ok || r.skipped)) return r
+        last = r
+      } catch (e) {
+        last = { ok: false, type: 'bydate', date: dateStr, error: e && e.message }
+      }
+      if (attempt < 3) {
+        log(`[fetch-date] 第 ${attempt}/3 次尝试失败: ${last && last.error}，3 秒后重试`)
+        await sleep(3000)
+      }
+    }
+    return last
+  })
 }
 
 /** 在 Element UI 日期范围选择器中，于正确的月份面板点选指定日 */

@@ -40,9 +40,9 @@ jobs:
         working-directory: streamer-dashboard
         run: npm ci || npm install
 
-      - name: Export static data (server/data → public/)
+      - name: Export static data (server/data → public/) if present
         working-directory: streamer-dashboard
-        run: node scripts/export-static.mjs
+        run: if [ -f server/data/latest.json ]; then node scripts/export-static.mjs; else echo "server/data not in repo - using committed public/streamer_data.json"; fi
 
       - name: Build static site
         working-directory: streamer-dashboard
